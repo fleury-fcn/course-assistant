@@ -1,0 +1,8 @@
+PyMuPDF
+numpy
+pandas
+scikit-learn
+streamlit
+# Optionnel pour l'OCR : installer aussi Tesseract via Homebrew.
+# pytesseract
+# Pillow
