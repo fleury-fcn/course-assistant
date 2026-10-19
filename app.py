@@ -8,24 +8,25 @@ try:
 except ImportError as error:  # pragma: no cover - exercised when launching without optional UI dependency
     raise SystemExit("Streamlit n'est pas installé. Lancez `pip install -r requirements.txt`.") from error
 
-from src.statistical_assistant.answer_generator import documentary_answer
-from src.statistical_assistant.answer_generator import llm_prompt
-from src.statistical_assistant.chunker import chunk_pages
-from src.statistical_assistant.config import Settings
-from src.statistical_assistant.document_loader import DocumentLoadError, discover_pdfs, load_pdf
-from src.statistical_assistant.indexing import TfidfIndex
-from src.statistical_assistant.retrieval import search_course
-from src.statistical_assistant.llm_client import LLMConfigurationError, generate_answer
+from src.document_assistant.answer_generator import documentary_answer, llm_prompt
+from src.document_assistant.chunker import chunk_pages
+from src.document_assistant.config import Settings
+from src.document_assistant.document_loader import (
+    DocumentLoadError, discover_documents, load_document,
+)
+from src.document_assistant.indexing import TfidfIndex
+from src.document_assistant.retrieval import search_course
+from src.document_assistant.llm_client import LLMConfigurationError, generate_answer
 
 
 ROOT = Path(__file__).resolve().parent
 SETTINGS = Settings.from_project_root(ROOT)
 
 
-def build_index(use_ocr: bool = False) -> TfidfIndex:
+def build_document_index(use_ocr: bool = False) -> TfidfIndex:
     chunks = []
-    for path in discover_pdfs(SETTINGS.pdf_dir):
-        pages, _ = load_pdf(path, use_ocr=use_ocr)
+    for path in discover_documents(SETTINGS.pdf_dir):
+        pages, _ = load_document(path, use_ocr=use_ocr)
         chunks.extend(chunk_pages(pages, SETTINGS.chunk_size, SETTINGS.chunk_overlap))
     index = TfidfIndex.build(chunks)
     index.save(SETTINGS.index_dir)
@@ -40,22 +41,22 @@ def load_index() -> TfidfIndex | None:
         return None
 
 
-st.set_page_config(page_title="Assistant de statistique", page_icon="📚", layout="wide")
-st.title("Assistant de statistique inférentielle")
-st.caption("Recherche documentaire locale dans vos cours PDF — TF-IDF, sans clé API.")
+st.set_page_config(page_title="Document-Assistant", page_icon="📚", layout="wide")
+st.title("Document-Assistant")
+st.caption("Explorez le contenu de vos documents localement, quelle que soit leur extension.")
 
 with st.sidebar:
     st.header("Documents")
-    pdfs = discover_pdfs(SETTINGS.pdf_dir)
-    st.write(f"{len(pdfs)} document(s) dans `data/raw/`")
-    for pdf in pdfs:
+    documents = discover_documents(SETTINGS.pdf_dir)
+    st.write(f"{len(documents)} document(s) dans `data/raw/`")
+    for pdf in documents:
         col_name, col_delete = st.columns([4, 1])
         col_name.write(pdf.name)
         if col_delete.button("×", key=f"delete-{pdf.name}", help="Supprimer ce document"):
             pdf.unlink()
             st.cache_resource.clear()
             st.rerun()
-    uploaded = st.file_uploader("Ajouter un PDF", type=["pdf"])
+    uploaded = st.file_uploader("Ajouter un document")
     if uploaded:
         target = SETTINGS.pdf_dir / Path(uploaded.name).name
         if uploaded.size > SETTINGS.max_upload_mb * 1024 * 1024:
@@ -65,14 +66,14 @@ with st.sidebar:
         else:
             SETTINGS.pdf_dir.mkdir(parents=True, exist_ok=True)
             target.write_bytes(uploaded.getvalue())
-            st.success("PDF ajouté. Cliquez sur « Réindexer ».")
+            st.success("Document ajouté. Cliquez sur « Réindexer ».")
             st.cache_resource.clear()
     mode = st.radio("Mode de réponse", ["Documentaire local", "LLM optionnel"])
     use_ocr = st.checkbox("OCR optionnel pour les pages sans texte")
     if st.button("Réindexer", type="primary"):
         try:
             with st.spinner("Extraction et indexation..."):
-                build_index(use_ocr=use_ocr)
+                build_document_index(use_ocr=use_ocr)
             st.cache_resource.clear()
             st.success("Index reconstruit.")
             st.rerun()

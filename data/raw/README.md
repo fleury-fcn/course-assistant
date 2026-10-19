@@ -1,4 +1,5 @@
 # Documents source
 
-Déposez ici les PDF du cours. Les noms sont découverts automatiquement et les
-fichiers personnels sont ignorés par Git.
+Déposez ici vos documents. Document-Assistant découvre automatiquement les
+formats texte, PDF, EPUB, XPS, HTML, Markdown, CSV, JSON et plusieurs formats
+Office courants. Les fichiers personnels sont ignorés par Git.

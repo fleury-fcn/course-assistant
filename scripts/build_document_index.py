@@ -3,18 +3,18 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.statistical_assistant.chunker import chunk_pages
-from src.statistical_assistant.config import Settings
-from src.statistical_assistant.document_loader import DocumentLoadError, discover_pdfs, load_pdf
-from src.statistical_assistant.indexing import TfidfIndex
+from src.document_assistant.chunker import chunk_pages
+from src.document_assistant.config import Settings
+from src.document_assistant.document_loader import DocumentLoadError, discover_documents, load_document
+from src.document_assistant.indexing import TfidfIndex
 
 
 def main() -> None:
     settings = Settings.from_project_root(Path(__file__).resolve().parents[1])
     chunks = []
-    for path in discover_pdfs(settings.pdf_dir):
+    for path in discover_documents(settings.pdf_dir):
         try:
-            pages, diagnostic = load_pdf(path)
+            pages, diagnostic = load_document(path)
         except DocumentLoadError as error:
             print(error, file=sys.stderr)
             raise SystemExit(1) from error

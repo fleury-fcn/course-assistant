@@ -1,11 +1,11 @@
 from pathlib import Path
 
-from src.statistical_assistant.chunker import chunk_pages
-from src.statistical_assistant.document_loader import load_pdf
-from src.statistical_assistant.indexing import TfidfIndex
-from src.statistical_assistant.models import Page
-from src.statistical_assistant.retrieval import search_course
-from src.statistical_assistant.text_cleaner import clean_text
+from src.document_assistant.chunker import chunk_pages
+from src.document_assistant.document_loader import discover_documents, load_document
+from src.document_assistant.indexing import TfidfIndex
+from src.document_assistant.models import Page
+from src.document_assistant.retrieval import search_course
+from src.document_assistant.text_cleaner import clean_text
 
 
 def test_cleaner_preserves_math_symbols_and_removes_word_hyphenation():
@@ -34,5 +34,14 @@ def test_hybrid_search_handles_a_partial_word():
 
 
 def test_pdf_has_pages():
-    pages, diagnostic = load_pdf(Path("data/raw/cours_statistiques.pdf"))
+    pages, diagnostic = load_document(Path("data/raw/cours_statistiques.pdf"))
     assert pages and diagnostic.page_count == len(pages)
+
+
+def test_text_document_is_discovered_and_loaded(tmp_path):
+    source = tmp_path / "notes.md"
+    source.write_text("# Une note\n\nUn contenu à explorer.", encoding="utf-8")
+    assert discover_documents(tmp_path) == [source]
+    pages, diagnostic = load_document(source)
+    assert diagnostic.text_pages == 1
+    assert "contenu" in pages[0].text
