@@ -12,7 +12,8 @@ from src.document_assistant.indexing import TfidfIndex
 def main() -> None:
     settings = Settings.from_project_root(Path(__file__).resolve().parents[1])
     chunks = []
-    for path in discover_documents(settings.pdf_dir):
+    source_paths = discover_documents(settings.pdf_dir)
+    for path in source_paths:
         try:
             pages, diagnostic = load_document(path)
         except DocumentLoadError as error:
@@ -25,7 +26,7 @@ def main() -> None:
         print("Aucun passage textuel à indexer.", file=sys.stderr)
         raise SystemExit(1)
     index = TfidfIndex.build(chunks)
-    index.save(settings.index_dir)
+    index.save(settings.index_dir, source_paths)
     print(f"Index créé : {len(index.chunks)} passages dans {settings.index_dir}")
 
 

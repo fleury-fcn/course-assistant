@@ -1,10 +1,12 @@
 import json
 from pathlib import Path
 import pickle
+from datetime import datetime, timezone
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from .models import Chunk
+from .storage import file_fingerprint
 
 
 class TfidfIndex:
@@ -39,12 +41,24 @@ class TfidfIndex:
         character_matrix = character_vectorizer.fit_transform([chunk.text for chunk in chunks])
         return cls(vectorizer, matrix, chunks, character_vectorizer, character_matrix)
 
-    def save(self, directory: Path) -> None:
+    def save(self, directory: Path, source_paths: list[Path] | None = None) -> None:
         directory.mkdir(parents=True, exist_ok=True)
         with (directory / "tfidf.pkl").open("wb") as handle:
             pickle.dump(self, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        sources = [
+            {"name": path.name, "fingerprint": file_fingerprint(path)}
+            for path in source_paths or []
+        ]
         (directory / "metadata.json").write_text(
-            json.dumps({"chunks": len(self.chunks), "documents": sorted({c.document_name for c in self.chunks})}, indent=2),
+            json.dumps(
+                {
+                    "chunks": len(self.chunks),
+                    "documents": sorted({c.document_name for c in self.chunks}),
+                    "sources": sources,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                },
+                indent=2,
+            ),
             encoding="utf-8",
         )
 
@@ -55,3 +69,31 @@ class TfidfIndex:
         if not isinstance(loaded, cls):
             raise ValueError("Format d'index inattendu.")
         return loaded
+
+
+def index_metadata(directory: Path) -> dict:
+    path = directory / "metadata.json"
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("Les métadonnées de l'index doivent contenir un objet.")
+    return data
+
+
+def index_is_current(directory: Path, source_paths: list[Path]) -> bool | None:
+    """Return None when the index predates source tracking."""
+    metadata = index_metadata(directory)
+    sources = metadata.get("sources")
+    if not isinstance(sources, list):
+        return None
+    expected = {
+        path.name: file_fingerprint(path)
+        for path in source_paths
+    }
+    actual = {
+        item.get("name"): item.get("fingerprint")
+        for item in sources
+        if isinstance(item, dict)
+    }
+    return actual == expected
